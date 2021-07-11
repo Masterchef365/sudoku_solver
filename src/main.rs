@@ -1,4 +1,5 @@
 use rand::seq::SliceRandom;
+use rand::Rng;
 use std::fmt;
 
 fn main() {
@@ -219,4 +220,101 @@ fn dumb_solver(mut work: Puzzle) -> Option<Puzzle> {
     }
 
     None
+}
+
+fn eval_block(block: Block) -> usize {
+    let mut cost = 0;
+    let mut seen = [false; 10]; // Could also do -1 but I figure this may be faster...
+    for &elem in &block {
+        // Penalty for empty spaces
+        if elem == 0 {
+            cost += 1;
+        }
+
+        // Penalty for double seen numbers
+        if seen[elem as usize] {
+            cost += 1;
+        } else {
+            seen[elem as usize] = true;
+        }
+    }
+
+    // Penalty for unseen numbers
+    cost += seen[1..].iter().filter(|b| !*b).count();
+
+    cost
+}
+
+fn random_puzzle() -> Puzzle {
+    let mut rng = rand::thread_rng();
+    let mut data = [0u8; 9 * 9];
+    data.chunks_exact_mut(9)
+        .enumerate()
+        .for_each(|(n, chunk)| chunk.fill(n as u8));
+    data.shuffle(&mut rng);
+    Puzzle { data }
+}
+
+// TODO: Not very DRY of you...
+fn eval_puzzle(puzzle: &Puzzle) -> usize {
+    let mut cost = 0;
+
+    // Check rows:
+    for row in puzzle.data.chunks_exact(9) {
+        let mut block = [0u8; 9];
+        block.copy_from_slice(row);
+        cost += eval_block(block);
+    }
+
+    // Check columns
+    for i in 0..9 {
+        let mut block = [0u8; 9];
+        for (&puzz, block) in puzzle.data.iter().skip(i).step_by(9).zip(&mut block) {
+            *block = puzz;
+        }
+        cost += eval_block(block);
+    }
+
+    // Check 3x3s
+    for x in (0..9).step_by(3) {
+        for y in (0..9).step_by(3) {
+            let mut block = [0u8; 9];
+            let mut i = 0;
+            for dx in x..x + 3 {
+                for dy in y..y + 3 {
+                    block[i] = puzzle.data[(dx + dy * 9) as usize];
+                    i += 1;
+                }
+            }
+            cost += eval_block(block);
+        }
+    }
+
+    cost
+}
+
+fn evaluative_solver() -> Puzzle {
+    let mut puzzle = random_puzzle();
+    let mut n = 0;
+    let mut rng = rand::thread_rng();
+    let mut best_cost = eval_puzzle(&puzzle);
+
+    // TODO: Fruitless restarts?
+    while !check_puzzle(&puzzle, true) {
+        let mut proposal = puzzle;
+        let first_idx = rng.gen_range(0..9*9);
+        let second_idx = rng.gen_range(0..9*9);
+        proposal.data.swap(first_idx, second_idx);
+        let proposal_cost = eval_puzzle(&proposal);
+        if proposal_cost < best_cost {
+            best_cost = proposal_cost;
+            puzzle = proposal;
+        }
+        n += 1;
+        if n % 1000 == 0 {
+            dbg!(n);
+        }
+    }
+
+    puzzle
 }
