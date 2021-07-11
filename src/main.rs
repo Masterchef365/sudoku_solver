@@ -3,13 +3,8 @@ use rand::Rng;
 use std::fmt;
 
 fn main() {
-    let zero = Puzzle::empty();
-    let soln = dumb_solver(zero);
-    if let Some(soln) = soln {
-        println!("{}", soln);
-    } else {
-        unreachable!("Inconceivable!!")
-    }
+    let soln = evaluative_solver();
+    println!("{}", soln);
 }
 
 const EMPTY: u8 = 0; // TODO: Use NonZeroU8?
@@ -270,7 +265,8 @@ fn random_puzzle() -> Puzzle {
     let mut data = [0u8; 9 * 9];
     data.chunks_exact_mut(9)
         .enumerate()
-        .for_each(|(n, chunk)| chunk.fill(n as u8));
+        .for_each(|(n, chunk)| chunk.fill(n as u8 + 1));
+    //println!("{}", Puzzle { data });
     data.shuffle(&mut rng);
     Puzzle { data }
 }
@@ -319,6 +315,11 @@ fn evaluative_solver() -> Puzzle {
     let mut rng = rand::thread_rng();
     let mut best_cost = eval_puzzle(&puzzle);
 
+    const REPEATS: u32 = 100_000;
+    let mut repeat_countdown = REPEATS;
+
+    let mut lowest_ever = usize::MAX;
+
     // TODO: Fruitless restarts?
     while !check_puzzle(&puzzle, true) {
         let mut proposal = puzzle;
@@ -329,11 +330,25 @@ fn evaluative_solver() -> Puzzle {
         if proposal_cost < best_cost {
             best_cost = proposal_cost;
             puzzle = proposal;
+            repeat_countdown = REPEATS;
+            lowest_ever = lowest_ever.min(best_cost);
+        } else {
+            repeat_countdown -= 1;
         }
+
         n += 1;
-        if n % 1000 == 0 {
-            dbg!(n);
+        if n % 100_000 == 0 {
+            dbg!(n, best_cost, repeat_countdown, lowest_ever);
+            //std::thread::sleep_ms(1);
         }
+
+        if repeat_countdown == 0 {
+            puzzle = random_puzzle();
+            best_cost = eval_puzzle(&puzzle);
+        }
+        //if n % 1000 == 0 {
+            //dbg!(n, best_cost);
+        //}
     }
 
     puzzle
