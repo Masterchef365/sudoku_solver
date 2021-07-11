@@ -1,9 +1,21 @@
 use rand::seq::SliceRandom;
 use rand::Rng;
 use std::fmt;
+use rand::distributions::{WeightedIndex, Distribution};
 
 fn main() {
-    let mut puzzle = Puzzle { data: KS_SOLVED };
+    let data = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 
+        0, 0, 0, 0, 0, 1, 0, 0, 2, 
+        0, 3, 4, 0, 0, 0, 0, 5, 0, 
+        0, 0, 0, 0, 0, 0, 0, 0, 6, 
+        0, 0, 7, 3, 4, 0, 0, 0, 0, 
+        2, 8, 0, 0, 0, 0, 0, 0, 1, 
+        0, 0, 0, 0, 5, 0, 0, 4, 0, 
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 
+        6, 0, 0, 0, 0, 2, 0, 0, 0, 
+    ];
+    let mut puzzle = Puzzle { data };
     let soln = evaluative_solver(puzzle);
     println!("{}", soln);
 
@@ -338,18 +350,23 @@ fn evaluative_solver(original: Puzzle) -> Puzzle {
     let mut best_cost = eval_puzzle(&puzzle);
 
     const REPEATS: u32 = 10_000;
-    const P_ANNEAL: f64 = 1. / 1000.;
+    const P_ANNEAL: f64 = 1. / 1_000.;
 
     let mut repeat_countdown = REPEATS;
-
     let mut lowest_ever = usize::MAX;
+    let mut lowest_ever_puzzle = None;
 
     // TODO: Fruitless restarts?
     while !check_puzzle(&puzzle, true) {
         let mut proposal = puzzle;
-        let first_idx = *orig_mask.choose(&mut rng).unwrap();
-        let second_idx = *orig_mask.choose(&mut rng).unwrap();
-        proposal.data.swap(first_idx, second_idx);
+
+        if best_cost < 4 {
+            let first_idx = *orig_mask.choose(&mut rng).unwrap();
+            let second_idx = *orig_mask.choose(&mut rng).unwrap();
+            proposal.data.swap(first_idx, second_idx);
+        } else {
+            smart_swap(&mut proposal, &mut rng, &orig_mask);
+        }
 
 
         let proposal_cost = eval_puzzle(&proposal);
@@ -357,7 +374,10 @@ fn evaluative_solver(original: Puzzle) -> Puzzle {
             best_cost = proposal_cost;
             puzzle = proposal;
             repeat_countdown = REPEATS;
-            lowest_ever = lowest_ever.min(best_cost);
+            if best_cost <= lowest_ever {
+                lowest_ever_puzzle = Some(puzzle);
+                lowest_ever = best_cost;
+            }
         } else {
             if repeat_countdown == 0 {
                 puzzle = random_fill(original, orig_mask.clone());
@@ -370,10 +390,77 @@ fn evaluative_solver(original: Puzzle) -> Puzzle {
         n += 1;
         if n % 100_000 == 0 {
             dbg!(n, best_cost, repeat_countdown, lowest_ever);
+            if let Some(lep) = lowest_ever_puzzle {
+                println!("{}", lep);
+            }
         }
     }
 
+    dbg!(n);
+
     puzzle
+}
+
+fn smart_swap(puzzle: &mut Puzzle, rng: &mut impl Rng, mask: &[usize]) {
+    let mut votes = votes(puzzle);
+    for (idx, v) in votes.iter_mut().enumerate() {
+        if !mask.contains(&idx) {
+            *v = 0;
+        }
+    }
+
+    let indices = WeightedIndex::new(&votes).unwrap();
+    puzzle.data.swap(
+        indices.sample(rng),
+        indices.sample(rng),
+    );
+}
+
+fn votes(puzzle: &Puzzle) -> [u8; 9*9] {
+    let mut votes = [0; 9*9];
+
+    // Check rows:
+    for (row, votes) in puzzle.data.chunks_exact(9).zip(votes.chunks_exact_mut(9)) {
+        let mut block = [0u8; 9];
+        block.copy_from_slice(row);
+        if !check_block(block, false) {
+            votes.iter_mut().for_each(|v| *v += 1);
+        }
+    }
+
+    // Check columns
+    for i in 0..9 {
+        let mut block = [0u8; 9];
+        for (&puzz, block) in puzzle.data.iter().skip(i).step_by(9).zip(&mut block) {
+            *block = puzz;
+        }
+        if !check_block(block, false) {
+            votes.iter_mut().skip(i).step_by(9).for_each(|v| *v += 1);
+        }
+    }
+
+    // Check 3x3s
+    for x in (0..9).step_by(3) {
+        for y in (0..9).step_by(3) {
+            let mut block = [0u8; 9];
+            let mut i = 0;
+            for dx in x..x + 3 {
+                for dy in y..y + 3 {
+                    block[i] = puzzle.data[(dx + dy * 9) as usize];
+                    i += 1;
+                }
+            }
+            if !check_block(block, false) {
+                for dx in x..x + 3 {
+                    for dy in y..y + 3 {
+                        votes[(dx + dy * 9) as usize] += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    votes
 }
 
 /// Sparse mask
