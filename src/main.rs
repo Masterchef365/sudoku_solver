@@ -164,6 +164,17 @@ mod tests {
         assert!(!check_puzzle(&puzzle, true));
         assert!(!check_puzzle(&puzzle, false));
     }
+
+    #[test]
+    fn test_eval_block() {
+        assert_eq!(eval_block([3, 4, 5, 2, 8, 6, 1, 7, 9]), 0);
+        assert_eq!(eval_block([3, 4, 5, 2, 8, 6, 1, 7, 7]), 2);
+        assert_eq!(eval_block([3, 4, 5, 2, 8, 6, 7, 7, 7]), 4);
+        assert_eq!(eval_block([3, 4, 5, 2, 8, 7, 7, 7, 7]), 6);
+        assert_eq!(eval_block([3, 4, 5, 2, 8, 7, 7, 7, 0]), 6);
+        assert_eq!(eval_block([0; 9]), 9*3 - 1);
+    }
+
 }
 
 const KNOWN_SOLVED: BoardData = [
