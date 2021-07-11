@@ -3,8 +3,21 @@ use rand::Rng;
 use std::fmt;
 
 fn main() {
-    let soln = evaluative_solver();
-    println!("{}", soln);
+    let mut puzzle = Puzzle { data: KNOWN_SOLVED };
+    println!("{}", puzzle);
+    println!();
+
+    puzzle.data[2] = 0;
+    puzzle.data[8] = 0;
+
+    println!("{}", puzzle);
+    println!();
+    let mask = make_mask(&puzzle);
+    let p = random_fill(puzzle, mask.clone());
+    println!("{}", p);
+
+    //let soln = evaluative_solver();
+    //println!("{}", soln);
 }
 
 const EMPTY: u8 = 0; // TODO: Use NonZeroU8?
@@ -140,7 +153,9 @@ mod tests {
         assert!(check_puzzle(&puzzle, false));
 
         // One part empty
-        let puzzle = Puzzle { data: ONE_PART_EMPTY };
+        let puzzle = Puzzle {
+            data: ONE_PART_EMPTY,
+        };
         assert!(!check_puzzle(&puzzle, true));
         assert!(check_puzzle(&puzzle, false));
 
@@ -168,17 +183,20 @@ mod tests {
         assert_eq!(eval_block([3, 4, 5, 2, 8, 6, 7, 7, 7]), 4);
         assert_eq!(eval_block([3, 4, 5, 2, 8, 7, 7, 7, 7]), 6);
         assert_eq!(eval_block([3, 4, 5, 2, 8, 7, 7, 7, 0]), 6);
-        assert_eq!(eval_block([0; 9]), 9*3 - 1);
+        assert_eq!(eval_block([0; 9]), 9 * 3 - 1);
     }
 
     #[test]
     fn test_eval_puzzle() {
         assert_eq!(eval_puzzle(&Puzzle { data: KNOWN_SOLVED }), 0);
-        assert_eq!(eval_puzzle(&Puzzle { data: ONE_PART_EMPTY }), 2*3);
-        assert_eq!(eval_puzzle(&Puzzle::empty()), (9*3-1)*3*(3*3));
+        assert_eq!(
+            eval_puzzle(&Puzzle {
+                data: ONE_PART_EMPTY
+            }),
+            2 * 3
+        );
+        assert_eq!(eval_puzzle(&Puzzle::empty()), (9 * 3 - 1) * 3 * (3 * 3));
     }
-
-
 }
 
 const KNOWN_SOLVED: BoardData = [
@@ -323,8 +341,8 @@ fn evaluative_solver() -> Puzzle {
     // TODO: Fruitless restarts?
     while !check_puzzle(&puzzle, true) {
         let mut proposal = puzzle;
-        let first_idx = rng.gen_range(0..9*9);
-        let second_idx = rng.gen_range(0..9*9);
+        let first_idx = rng.gen_range(0..9 * 9);
+        let second_idx = rng.gen_range(0..9 * 9);
         proposal.data.swap(first_idx, second_idx);
         let proposal_cost = eval_puzzle(&proposal);
         if proposal_cost < best_cost {
@@ -347,8 +365,43 @@ fn evaluative_solver() -> Puzzle {
             best_cost = eval_puzzle(&puzzle);
         }
         //if n % 1000 == 0 {
-            //dbg!(n, best_cost);
+        //dbg!(n, best_cost);
         //}
+    }
+
+    puzzle
+}
+
+/// Sparse mask
+type Mask = Vec<usize>;
+
+fn make_mask(puzzle: &Puzzle) -> Mask {
+    puzzle
+        .data
+        .iter()
+        .enumerate()
+        .filter_map(|(i, &e)| (e == EMPTY).then(|| i))
+        .collect()
+}
+
+/// Fill zeroes with the correct amount of random numbers 1-9
+fn random_fill(mut puzzle: Puzzle, mut mask: Mask) -> Puzzle {
+    let mut buckets = vec![(0u8, 0u8); 9];
+    buckets.iter_mut().enumerate().for_each(|(i, b)| *b = ((i+1) as u8, 9));
+    for &elem in &puzzle.data {
+        if elem != EMPTY {
+            buckets[(elem - 1) as usize].1 -= 1;
+        }
+    }
+
+    let mut rng = rand::thread_rng();
+    mask.shuffle(&mut rng);
+
+    for i in mask {
+        buckets.retain(|b| b.1 != 0);
+        let bucket = buckets.choose_mut(&mut rng).expect("Should be unreachable for well-formed puzzles...");
+        puzzle.data[i] = bucket.0;
+        bucket.1 -= 1;
     }
 
     puzzle
