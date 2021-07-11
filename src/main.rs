@@ -125,6 +125,18 @@ mod tests {
         assert!(check_block([1, 2, 3, 4, 5, 6, 7, 8, 0], false));
     }
 
+    const ONE_PART_EMPTY: BoardData = [
+        5, 3, 4, 6, 7, 8, 9, 1, 2, //
+        6, 7, 2, 1, 9, 5, 3, 4, 8, //
+        1, 9, 8, 3, 4, 2, 5, 6, 7, //
+        8, 5, 9, 7, 6, 1, 4, 2, 3, //
+        4, 2, 6, 8, 5, 0, 7, 9, 1, //
+        7, 1, 3, 9, 2, 4, 8, 5, 6, //
+        9, 6, 1, 5, 3, 7, 2, 8, 4, //
+        2, 8, 7, 4, 1, 9, 6, 3, 5, //
+        3, 4, 5, 2, 8, 6, 1, 7, 9, //
+    ];
+
     #[test]
     fn test_check_puzzle() {
         // True puzzle
@@ -133,18 +145,7 @@ mod tests {
         assert!(check_puzzle(&puzzle, false));
 
         // One part empty
-        let data = [
-            5, 3, 4, 6, 7, 8, 9, 1, 2, //
-            6, 7, 2, 1, 9, 5, 3, 4, 8, //
-            1, 9, 8, 3, 4, 2, 5, 6, 7, //
-            8, 5, 9, 7, 6, 1, 4, 2, 3, //
-            4, 2, 6, 8, 5, 0, 7, 9, 1, //
-            7, 1, 3, 9, 2, 4, 8, 5, 6, //
-            9, 6, 1, 5, 3, 7, 2, 8, 4, //
-            2, 8, 7, 4, 1, 9, 6, 3, 5, //
-            3, 4, 5, 2, 8, 6, 1, 7, 9, //
-        ];
-        let puzzle = Puzzle { data };
+        let puzzle = Puzzle { data: ONE_PART_EMPTY };
         assert!(!check_puzzle(&puzzle, true));
         assert!(check_puzzle(&puzzle, false));
 
@@ -174,6 +175,14 @@ mod tests {
         assert_eq!(eval_block([3, 4, 5, 2, 8, 7, 7, 7, 0]), 6);
         assert_eq!(eval_block([0; 9]), 9*3 - 1);
     }
+
+    #[test]
+    fn test_eval_puzzle() {
+        assert_eq!(eval_puzzle(&Puzzle { data: KNOWN_SOLVED }), 0);
+        assert_eq!(eval_puzzle(&Puzzle { data: ONE_PART_EMPTY }), 2*3);
+        assert_eq!(eval_puzzle(&Puzzle::empty()), (9*3-1)*3*(3*3));
+    }
+
 
 }
 
