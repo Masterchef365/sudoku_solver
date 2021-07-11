@@ -1,10 +1,31 @@
+use std::fmt;
+
 fn main() {
+    println!("{}", Puzzle::empty());
 }
 
 const EMPTY: u8 = 0; // TODO: Use NonZeroU8?
 
 struct Puzzle {
     data: [u8; 9*9],
+}
+
+impl Puzzle {
+    fn empty() -> Self {
+        Self { data: [0u8; 9*9] }
+    }
+}
+
+impl fmt::Display for Puzzle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for row in self.data.chunks_exact(9) {
+            for elem in row {
+                write!(f, "{} ", elem)?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
+    }
 }
 
 fn check_puzzle(puzzle: &Puzzle, test_zero: bool) -> bool {
