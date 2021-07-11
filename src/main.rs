@@ -338,6 +338,8 @@ fn evaluative_solver(original: Puzzle) -> Puzzle {
     let mut best_cost = eval_puzzle(&puzzle);
 
     const REPEATS: u32 = 10_000;
+    const P_ANNEAL: f64 = 1. / 1000.;
+
     let mut repeat_countdown = REPEATS;
 
     let mut lowest_ever = usize::MAX;
@@ -351,7 +353,7 @@ fn evaluative_solver(original: Puzzle) -> Puzzle {
 
 
         let proposal_cost = eval_puzzle(&proposal);
-        if proposal_cost < best_cost {
+        if proposal_cost < best_cost || rng.gen_bool(P_ANNEAL) {
             best_cost = proposal_cost;
             puzzle = proposal;
             repeat_countdown = REPEATS;
