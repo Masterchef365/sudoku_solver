@@ -3,28 +3,17 @@ use rand::Rng;
 use std::fmt;
 
 fn main() {
-    let mut puzzle = Puzzle { data: KNOWN_SOLVED };
-    println!("{}", puzzle);
-    println!();
+    let mut puzzle = Puzzle { data: KS_SOLVED };
+    let soln = evaluative_solver(puzzle);
+    println!("{}", soln);
 
-    puzzle.data[2] = 0;
-    puzzle.data[8] = 0;
-
-    println!("{}", puzzle);
-    println!();
-    let mask = make_mask(&puzzle);
-    let p = random_fill(puzzle, mask.clone());
-    println!("{}", p);
-
-    //let soln = evaluative_solver();
-    //println!("{}", soln);
 }
 
 const EMPTY: u8 = 0; // TODO: Use NonZeroU8?
 
 type BoardData = [u8; 9 * 9];
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 struct Puzzle {
     data: BoardData,
 }
@@ -211,6 +200,19 @@ const KNOWN_SOLVED: BoardData = [
     3, 4, 5, 2, 8, 6, 1, 7, 9, //
 ];
 
+const KS_SOLVED: BoardData = [
+    5, 3, 0, 0, 7, 0, 0, 0, 0, //
+    6, 0, 0, 1, 9, 5, 0, 0, 0, //
+    0, 9, 8, 0, 0, 0, 0, 6, 0, //
+    8, 0, 0, 0, 6, 0, 0, 0, 3, //
+    4, 0, 0, 8, 0, 3, 0, 0, 1, //
+    7, 0, 0, 0, 2, 0, 0, 0, 6, //
+    0, 6, 0, 0, 0, 0, 2, 8, 0, //
+    0, 0, 0, 4, 1, 9, 0, 0, 5, //
+    0, 0, 0, 0, 8, 0, 0, 7, 9, //
+];
+
+
 /*
 struct AvailableOptions {
 }
@@ -327,8 +329,10 @@ fn eval_puzzle(puzzle: &Puzzle) -> usize {
     cost
 }
 
-fn evaluative_solver() -> Puzzle {
-    let mut puzzle = random_puzzle();
+fn evaluative_solver(original: Puzzle) -> Puzzle {
+    let orig_mask = make_mask(&original);
+
+    let mut puzzle = random_fill(original, orig_mask.clone());
     let mut n = 0;
     let mut rng = rand::thread_rng();
     let mut best_cost = eval_puzzle(&puzzle);
@@ -341,9 +345,11 @@ fn evaluative_solver() -> Puzzle {
     // TODO: Fruitless restarts?
     while !check_puzzle(&puzzle, true) {
         let mut proposal = puzzle;
-        let first_idx = rng.gen_range(0..9 * 9);
-        let second_idx = rng.gen_range(0..9 * 9);
+        let first_idx = *orig_mask.choose(&mut rng).unwrap();
+        let second_idx = *orig_mask.choose(&mut rng).unwrap();
         proposal.data.swap(first_idx, second_idx);
+
+
         let proposal_cost = eval_puzzle(&proposal);
         if proposal_cost < best_cost {
             best_cost = proposal_cost;
@@ -351,22 +357,18 @@ fn evaluative_solver() -> Puzzle {
             repeat_countdown = REPEATS;
             lowest_ever = lowest_ever.min(best_cost);
         } else {
+            if repeat_countdown == 0 {
+                puzzle = random_fill(original, orig_mask.clone());
+                best_cost = eval_puzzle(&puzzle);
+                repeat_countdown = REPEATS;
+            }
             repeat_countdown -= 1;
         }
 
         n += 1;
         if n % 100_000 == 0 {
             dbg!(n, best_cost, repeat_countdown, lowest_ever);
-            //std::thread::sleep_ms(1);
         }
-
-        if repeat_countdown == 0 {
-            puzzle = random_puzzle();
-            best_cost = eval_puzzle(&puzzle);
-        }
-        //if n % 1000 == 0 {
-        //dbg!(n, best_cost);
-        //}
     }
 
     puzzle
