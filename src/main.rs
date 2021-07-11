@@ -315,7 +315,7 @@ fn evaluative_solver() -> Puzzle {
     let mut rng = rand::thread_rng();
     let mut best_cost = eval_puzzle(&puzzle);
 
-    const REPEATS: u32 = 100_000;
+    const REPEATS: u32 = 10_000;
     let mut repeat_countdown = REPEATS;
 
     let mut lowest_ever = usize::MAX;
