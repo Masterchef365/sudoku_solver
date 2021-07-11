@@ -1,12 +1,58 @@
 fn main() {
 }
 
+const EMPTY: u8 = 0; // TODO: Use NonZeroU8?
+
+struct Puzzle {
+    data: [u8; 9*9],
+}
+
+fn check_puzzle(puzzle: &Puzzle) -> bool {
+    // Check rows:
+    for row in puzzle.data.chunks_exact(9) {
+        let mut block = [0u8; 9];
+        block.copy_from_slice(row);
+        if !check_block(block) {
+            return false;
+        }
+    }
+
+    // Check columns
+    for i in 0..9 {
+        let mut block = [0u8; 9];
+        for (&puzz, block) in puzzle.data.iter().skip(i).step_by(9).zip(&mut block) {
+            *block = puzz;
+        }
+        if !check_block(block) {
+            return false;
+        }
+    }
+
+    // Check 3x3s
+    for x in (0..9).step_by(3) {
+        for y in (0..9).step_by(3) {
+            let mut block = [0u8; 9];
+            let mut i = 0;
+            for dx in x..x+3 {
+                for dy in y..y+3 {
+                    block[i] = puzzle.data[(dx + dy * 9) as usize];
+                    i += 1;
+                }
+            }
+            if !check_block(block) {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
 type Block = [u8; 9];
 
 fn check_block(block: Block) -> bool {
     let mut bits = [false; 10]; // Could also do -1 but I figure this may be faster... 
     for &elem in &block {
-        //let bit = &mut bits[elem as usize];
         let bit = match bits.get_mut(elem as usize) {
             Some(b) => b,
             None => return false,
