@@ -349,7 +349,7 @@ fn evaluative_solver(original: Puzzle) -> Puzzle {
     let mut rng = rand::thread_rng();
     let mut best_cost = eval_puzzle(&puzzle);
 
-    const REPEATS: u32 = 10_000;
+    const REPEATS: u32 = 3_000;
     const P_ANNEAL: f64 = 1. / 1_000.;
 
     let mut repeat_countdown = REPEATS;
@@ -360,14 +360,7 @@ fn evaluative_solver(original: Puzzle) -> Puzzle {
     while !check_puzzle(&puzzle, true) {
         let mut proposal = puzzle;
 
-        if best_cost < 4 {
-            let first_idx = *orig_mask.choose(&mut rng).unwrap();
-            let second_idx = *orig_mask.choose(&mut rng).unwrap();
-            proposal.data.swap(first_idx, second_idx);
-        } else {
-            smart_swap(&mut proposal, &mut rng, &orig_mask);
-        }
-
+        smart_swap(&mut proposal, &mut rng, &orig_mask);
 
         let proposal_cost = eval_puzzle(&proposal);
         if proposal_cost < best_cost || rng.gen_bool(P_ANNEAL) {
@@ -380,7 +373,11 @@ fn evaluative_solver(original: Puzzle) -> Puzzle {
             }
         } else {
             if repeat_countdown == 0 {
-                puzzle = random_fill(original, orig_mask.clone());
+                if rng.gen_bool(0.1) && lowest_ever_puzzle.is_some() {
+                    puzzle = lowest_ever_puzzle.unwrap();
+                } else {
+                    puzzle = random_fill(original, orig_mask.clone());
+                }
                 best_cost = eval_puzzle(&puzzle);
                 repeat_countdown = REPEATS;
             }
@@ -409,15 +406,25 @@ fn smart_swap(puzzle: &mut Puzzle, rng: &mut impl Rng, mask: &[usize]) {
         }
     }
 
-    let indices = WeightedIndex::new(&votes).unwrap();
-    puzzle.data.swap(
-        indices.sample(rng),
-        indices.sample(rng),
-    );
+    //let indices = WeightedIndex::new(&votes).unwrap();
+    match WeightedIndex::new(&votes) {
+        Ok(indices) => {
+            puzzle.data.swap(
+                indices.sample(rng),
+                indices.sample(rng),
+            );
+        },
+        Err(_) => {
+            puzzle.data.swap(
+                *mask.choose(rng).unwrap(),
+                *mask.choose(rng).unwrap(),
+            );
+        },
+    };
 }
 
 fn votes(puzzle: &Puzzle) -> [u8; 9*9] {
-    let mut votes = [0; 9*9];
+    let mut votes = [1; 9*9];
 
     // Check rows:
     for (row, votes) in puzzle.data.chunks_exact(9).zip(votes.chunks_exact_mut(9)) {
